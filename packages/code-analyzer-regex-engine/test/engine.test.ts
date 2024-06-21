@@ -6,12 +6,54 @@ import {
     RuleDescription,
     RuleType,
     SeverityLevel,
-    EngineRunResults,
-    RunOptions
+    RunOptions,
+    EngineRunResults
 } from "@salesforce/code-analyzer-engine-api";
 
 
 changeWorkingDirectoryToPackageRoot();
+
+// const EXPECTED_VIOLATION_1: EngineApi.Violation = {
+//     ruleName: "Trailing Whitespace",
+//     codeLocations: [EXPECTED_CODE_LOCATION_1],
+//     primaryLocationIndex: 0,
+//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
+//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
+    
+// };
+
+// const EXPECTED_VIOLATION_2: EngineApi.Violation = {
+//     ruleName: "Trailing Whitespace",
+//     codeLocations: [EXPECTED_CODE_LOCATION_2],
+//     primaryLocationIndex: 0,
+//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
+//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
+    
+// };
+
+// const EXPECTED_VIOLATION_3: EngineApi.Violation = {
+//     ruleName: "Trailing Whitespace", 
+//     codeLocations: [EXPECTED_CODE_LOCATION_1, EXPECTED_CODE_LOCATION_2],
+//     primaryLocationIndex: 0,
+//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
+//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
+// }
+
+// const EXPECTED_VIOLATION_4: EngineApi.Violation = {
+//     ruleName: "Trailing Whitespace",
+//     codeLocations: [EXPECTED_CODE_LOCATION_3, EXPECTED_CODE_LOCATION_4],
+//     primaryLocationIndex: 0,
+//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
+//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
+// }
+
+// const EXPECTED_VIOLATION_5: EngineApi.Violation = {
+//     ruleName: "Trailing Whitespace",
+//     codeLocations: [EXPECTED_CODE_LOCATION_5, EXPECTED_CODE_LOCATION_6],
+//     primaryLocationIndex: 0,
+//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
+//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
+// }
 
 describe('Regex Engine Tests', () => {
     let engine: RegexEngine;

@@ -76,4 +76,7 @@ export async function expandToListAllFiles(absoluteFileOrFolderPaths: string[]):
     await Promise.all(absoluteFileOrFolderPaths.map(processPath));
     return allFiles.sort();
 }
+<<<<<<< HEAD
 >>>>>>> b38cffc (CHANGE: @W-16092798@: Introduce Workspace and update rule selection to take in a workspace (#32))
+=======
+>>>>>>> a4dd879 (@NEW W-18985046@ Implement and test whitespace rule on files)

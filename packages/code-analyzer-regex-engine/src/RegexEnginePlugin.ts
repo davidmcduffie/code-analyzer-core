@@ -56,6 +56,7 @@ export class RegexEngine extends Engine {
         violations = violations.concat(await executor.execute(fullFileList))
         const runResults: EngineRunResults = {violations: violations}
         return runResults
+
     } 
 
 }
