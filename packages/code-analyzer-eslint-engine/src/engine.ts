@@ -22,9 +22,9 @@ export class ESLintEnginePlugin extends EnginePluginV1 {
         return [ESLintEngine.NAME];
     }
 
-    createEngine(engineName: string, _config: ConfigObject): Engine {
+    createEngine(engineName: string, engineConfig: ConfigObject): Engine {
         if (engineName === ESLintEngine.NAME) {
-            return new ESLintEngine();
+            return new ESLintEngine(engineConfig);
         }
         throw new Error(getMessage('CantCreateEngineWithUnknownEngineName', engineName));
     }
@@ -32,11 +32,14 @@ export class ESLintEnginePlugin extends EnginePluginV1 {
 
 export class ESLintEngine extends Engine {
     static readonly NAME = "eslint";
+
+    private readonly engineConfig: ConfigObject;
     private folderForCache: string = '';
     private cachedEslintStrategy?: ESLintStrategy; // Not passed in. Will lazy construct this to use async if needed
 
-    constructor() {
+    constructor(engineConfig: ConfigObject) {
         super();
+        this.engineConfig = engineConfig;
     }
 
     getName(): string {
@@ -58,8 +61,12 @@ export class ESLintEngine extends Engine {
         return ruleDescriptions.sort((d1,d2) => d1.name.localeCompare(d2.name));
     }
 
-    async runRules(_ruleNames: string[], _runOptions: RunOptions): Promise<EngineRunResults> {
-        throw new Error('Method not implemented.');
+    async runRules(ruleNames: string[], runOptions: RunOptions): Promise<EngineRunResults> {
+        const strategy: ESLintStrategy = this.getStrategy();
+        const eslintResults: ESLint.LintResult[] = await strategy.run(ruleNames, runOptions.workspaceFiles);
+        return {
+            violations: toViolations(eslintResults, ruleNames)
+        }
     }
 
     private getStrategy(): ESLintStrategy {
@@ -69,10 +76,14 @@ export class ESLintEngine extends Engine {
         // call. So we might need to change createEngine to async (or generate the strategy later on). Also getting
         // all the rule metadata for the flat config world may require us to load in all the config modules and parse
         // them ourselves. See https://github.com/eslint/eslint/discussions/18546.
-        if (!this.cachedEslintStrategy || this.folderForCache !== process.cwd()) {
-            // TODO: pass in user's legacy eslint config file from engine config if available
-            const legacyConfigFile: string | undefined = findLegacyConfigFile();  // See https://github.com/eslint/eslint/issues/18615
-            this.cachedEslintStrategy = new LegacyESLintStrategy(legacyConfigFile);
+        if (!this.cachedEslintStrategy || this.folderForCache !== process.cwd()) {  // TODO: Do we want cwd? Or do we want to calculate the workspace root directory?
+            const eslintConfigFileValueFromEngineConfig: string | undefined = this.engineConfig['config-file'] as (string | undefined); // TODO: Validate
+            const disableJavascriptBaseConfig: boolean = this.engineConfig['disable-javascript-base-config'] ? this.engineConfig['disable-javascript-base-config'] as boolean : false; // TODO: Validate
+            const disableTypescriptBaseConfig: boolean = this.engineConfig['disable-typescript-base-config'] ? this.engineConfig['disable-typescript-base-config'] as boolean : false; // TODO: Validate
+            const disableLwcBaseConfig: boolean = this.engineConfig['disable-lwc-base-config'] ? this.engineConfig['disable-base-lwc-rules'] as boolean : false; // TODO: Validate
+
+            const legacyConfigFile: string | undefined = eslintConfigFileValueFromEngineConfig || findLegacyConfigFile();  // See https://github.com/eslint/eslint/issues/18615
+            this.cachedEslintStrategy = new LegacyESLintStrategy(legacyConfigFile, disableJavascriptBaseConfig, disableTypescriptBaseConfig, disableLwcBaseConfig);
             this.folderForCache = process.cwd();
         }
         return this.cachedEslintStrategy;
@@ -121,4 +132,47 @@ function findLegacyConfigFile(): string | undefined {
         }
     }
     return undefined;
+}
+
+function toViolations(eslintResults: ESLint.LintResult[], ruleNames: string[]): Violation[] {
+    const violations: Violation[] = [];
+    for (const eslintResult of eslintResults) {
+        for (const resultMsg of eslintResult.messages) {
+            const ruleName = resultMsg.ruleId;
+            if(!ruleName) { // TEMP
+                console.log(`WARNING: (${eslintResult.filePath}): ${resultMsg.message}`);
+                continue;
+            } else if (!ruleNames.includes(ruleName)) {
+                console.log(`WARNING: A rule with name '${ruleName}' produced a violation, but this rule was not registered so it will not be included in the results. Result:\n${JSON.stringify(eslintResult,null,2)}`);
+                continue;
+            }
+            violations.push(toViolation(eslintResult.filePath, resultMsg));
+        }
+    }
+    return violations;
+}
+
+function toViolation(file: string, resultMsg: Linter.LintMessage): Violation {
+    // In the future we may want to take advantage of the fix and suggestions fields.
+    // See https://eslint.org/docs/v8.x/integrate/nodejs-api#-lintmessage-type.
+
+    // if(!resultMsg.ruleId) {
+    //     // TODO: We need to enhance core and the engine api to allow engines to return something like an EngineErrorViolation
+    //     // instead of a standard one so that we don't need to throw an exception here.
+    //     // throw new Error(resultMsg.message);
+    //     console.log(`WARNING: ${resultMsg.message}`);
+    // }
+
+    return {
+        ruleName: resultMsg.ruleId as string,
+        message: resultMsg.message,
+        codeLocations: [{
+            file: file,
+            startLine: Math.max(resultMsg.line, 1),
+            startColumn: Math.max(resultMsg.column, 1),
+            endLine: resultMsg.endLine ? Math.max(resultMsg.endLine, 1) : undefined,
+            endColumn: resultMsg.endColumn ? Math.max(resultMsg.endColumn, 1) : undefined
+        }],
+        primaryLocationIndex: 0
+    };
 }

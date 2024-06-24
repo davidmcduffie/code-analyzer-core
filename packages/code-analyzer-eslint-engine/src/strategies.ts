@@ -1,22 +1,32 @@
-import {ESLint, Rule} from "eslint";
+import {ESLint, Linter, Rule} from "eslint";
 import path from "node:path";
 import {ESLintRuleStatus} from "./enums";
-import {LEGACY_BASE_CONFIG_ALL, LEGACY_BASE_CONFIG_RECOMMENDED} from "./base-config";
 import process from "node:process";
+import {getMessage} from "./messages";
+import fs from "node:fs";
 
 export interface ESLintStrategy {
     getMetadataFor(ruleName: string): Rule.RuleMetaData
 
     calculateRuleStatuses(filesToScan?: string[]): Promise<Map<string, ESLintRuleStatus>>
+
+    run(ruleNames: string[], filesAndFoldersToScan: string[]): Promise<ESLint.LintResult[]>
 }
 
 export class LegacyESLintStrategy implements ESLintStrategy{
     private readonly userEslintConfigFile?: string;
+    private readonly disableJavascriptBaseConfig: boolean;
+    private readonly disableTypescriptBaseConfig: boolean;
+    private readonly disableLwcBaseConfig: boolean;
+
     private allRulesMetadataCache?: Map<string, Rule.RuleMetaData>;
     private ruleStatusesCache?: Map<string, ESLintRuleStatus>;
 
-    constructor(userEslintConfigFile?: string) {
+    constructor(userEslintConfigFile?: string, disableJavascriptBaseConfig:boolean = false, disableTypescriptBaseConfig: boolean = false, disableLwcBaseConfig: boolean = false) {
         this.userEslintConfigFile = userEslintConfigFile;
+        this.disableJavascriptBaseConfig = disableJavascriptBaseConfig;
+        this.disableTypescriptBaseConfig = disableTypescriptBaseConfig;
+        this.disableLwcBaseConfig = disableLwcBaseConfig;
     }
 
     getMetadataFor(ruleName: string): Rule.RuleMetaData {
@@ -34,10 +44,7 @@ export class LegacyESLintStrategy implements ESLintStrategy{
             return this.allRulesMetadataCache;
         }
 
-        const legacyESLint: ESLint = new ESLint({
-            baseConfig: LEGACY_BASE_CONFIG_ALL,
-            overrideConfigFile: this.userEslintConfigFile
-        });
+        const legacyESLint: ESLint = this.createLegacyESLint(this.createLegacyBaseConfig('all'));
         const ruleModulesMap: Map<string, Rule.RuleModule> = this.getAllRuleModules(legacyESLint);
         const allRulesMetadata: Map<string, Rule.RuleMetaData> = new Map();
         for (const [ruleName, ruleModule] of ruleModulesMap) {
@@ -68,18 +75,14 @@ export class LegacyESLintStrategy implements ESLintStrategy{
             if (this.ruleStatusesCache) {
                 return this.ruleStatusesCache;
             }
-            filesToScan = getSampleFilesForRuleStatusCalculation();
+            filesToScan = this.getSampleFilesForRuleStatusCalculation();
         }
 
-        const ruleStatusForAll: Map<string, ESLintRuleStatus> = await this.calculateRuleStatusesFor(filesToScan, new ESLint({
-            baseConfig: LEGACY_BASE_CONFIG_ALL,
-            overrideConfigFile: this.userEslintConfigFile
-        }));
+        const ruleStatusForAll: Map<string, ESLintRuleStatus> = await this.calculateRuleStatusesFor(filesToScan,
+            this.createLegacyESLint(this.createLegacyBaseConfig('all')));
 
-        const ruleStatusForRecommended: Map<string, ESLintRuleStatus> = await this.calculateRuleStatusesFor(filesToScan, new ESLint({
-            baseConfig: LEGACY_BASE_CONFIG_RECOMMENDED,
-            overrideConfigFile: this.userEslintConfigFile
-        }));
+        const ruleStatusForRecommended: Map<string, ESLintRuleStatus> = await this.calculateRuleStatusesFor(filesToScan,
+            this.createLegacyESLint(this.createLegacyBaseConfig('recommended')));
 
         for (const ruleInAll of ruleStatusForAll.keys()) {
             if (!ruleStatusForRecommended.has(ruleInAll)) {
@@ -114,24 +117,159 @@ export class LegacyESLintStrategy implements ESLintStrategy{
         this.ruleStatusesCache = ruleStatuses;
         return ruleStatuses;
     }
+
+    async run(ruleNames: string[], filesAndFoldersToScan: string[]): Promise<ESLint.LintResult[]> {
+        const eslintForScanning: ESLint = this.createLegacyESLint(this.createLegacyBaseConfig('all'),
+            await this.calculateSelectedRulesConfig(ruleNames))
+
+        //TEMPORARY:
+        // console.log(JSON.stringify({
+        //     baseConfig: this.createLegacyBaseConfig('all'),
+        //     overrideConfigFile: this.userEslintConfigFile,
+        //     overrideConfig: await this.calculateSelectedRulesConfig(ruleNames)
+        // },null,2));
+        // console.log('.....')
+        // console.log(await eslintForScanning.calculateConfigForFile('/Users/stephen.carter/github/forcedotcom/sfdx-scanner/src/CsvOutputFormatter.ts'))
+        // console.log('.....')
+
+        try {
+            return await eslintForScanning.lintFiles(filesAndFoldersToScan);
+        } catch(err) {
+            const errMsg: string = (err as Error).message;
+            throw new Error(getMessage('ErrorRunningEslintLintFiles', errMsg), {cause: err});
+        }
+    }
+
+    private async calculateSelectedRulesConfig(rulesThatShouldBeOn: string[]): Promise<Linter.Config> {
+        const setOfRulesThatShouldBeOn: Set<string> = new Set(rulesThatShouldBeOn);
+        const rulesThatAreCurrentlyOn: string[] = Array.from((await this.calculateRuleStatuses()).keys());
+        const rulesToTurnOff: string[] = rulesThatAreCurrentlyOn.filter(ruleName => !setOfRulesThatShouldBeOn.has(ruleName));
+
+        const rulesRecord: Linter.RulesRecord = {};
+        for (const ruleToTurnOff of rulesToTurnOff) {
+            rulesRecord[ruleToTurnOff] = [ESLintRuleStatus.OFF]
+        }
+        return {
+            rules: rulesRecord
+        };
+    }
+
+    private createLegacyESLint(baseConfig: Linter.Config, overrideConfig?: Linter.Config): ESLint {
+        return new ESLint({
+            cwd: __dirname,
+            errorOnUnmatchedPattern: false,
+            // This is applied first (on bottom)
+            baseConfig: baseConfig,
+            // This is applied second
+            overrideConfigFile: this.userEslintConfigFile,
+            // This is applied third (on top)
+            overrideConfig: overrideConfig
+        });
+    }
+
+    private createLegacyBaseConfig(allOrRecommended: string): Linter.Config {
+        const baseJavascriptRules: string[] = this.disableJavascriptBaseConfig ? [] : [`eslint:${allOrRecommended}`];
+
+        const overrides: Linter.ConfigOverride[] = [];
+        if (this.disableLwcBaseConfig) {
+            overrides.push({
+                files: ["*.js", "*.mjs", "*.cjs"],
+                extends: [...baseJavascriptRules]
+            });
+        } else {
+            overrides.push({
+                files: ["*.js", "*.mjs", "*.cjs"],
+                extends: [
+                    ...baseJavascriptRules,
+                    "@salesforce/eslint-config-lwc/base"
+                ],
+                plugins: [
+                    "@lwc/eslint-plugin-lwc"
+                ],
+                parser: "@babel/eslint-parser",
+                parserOptions: {
+                    requireConfigFile: false,
+                    babelOptions: {
+                        parserOpts: {
+                            plugins: [
+                                "classProperties",
+                                ["decorators", { "decoratorsBeforeExport": false }]
+                            ]
+                        }
+                    }
+                }
+            });
+        }
+        if (!this.disableTypescriptBaseConfig) {
+            overrides.push({
+                files: ["*.ts"],
+                extends: [
+                    `eslint:${allOrRecommended}`,
+                    `plugin:@typescript-eslint/${allOrRecommended}`,
+                ],
+                plugins: [
+                    "@typescript-eslint"
+                ],
+                parser: '@typescript-eslint/parser',
+                parserOptions: {
+                    project: true
+                }
+            });
+        }
+
+        return {
+            globals: {
+                "$A": "readonly",  // Mark as known global for Aura: https://developer.salesforce.com/docs/atlas.en-us.lightning.meta/lightning/ref_jsapi_dollarA.htm
+            },
+            overrides: overrides
+        };
+    }
+
+    private getSampleFilesForRuleStatusCalculation(): string[] {
+        // To get the user selected status ("error", "warn" , or "off") of every single rule, we would theoretically have to
+        // ask eslint to calculate the configuration (which contains the rule status) for every single file that will be
+        // scanned. This is because users can add to their config that they only want certain rules to run for a particular
+        // file deep in their project. This is why ESLint only offers a calculateConfigForFile(filePath) method and not a
+        // getConfig method. See https://eslint.org/docs/v8.x/integrate/nodejs-api#-eslintcalculateconfigforfilefilepath
+        // If we were to do a full analysis using all the workspace files, it would be rather expensive. Instead, we will
+        // just use a list of sample dummy files instead to keep things fast. Note that the calculateConfigForFile method
+        // doesn't need the file to actually exist, so we just generate some sample file names for the various types of
+        // files that we expect eslint to scan.
+        // With this shortcut, the worse case scenario is that we miss that a rule has been turned on for some particular
+        // file (thus we would miss adding in the 'Recommended' tag for that rule). But in that case, the user can still
+        // update their code analyzer config file to manually add in the 'Recommended' tag for these special cases.
+        // Alternatively if users complain, then in the future we can add to the eslint engine a boolean field,
+        // like perform-full-rule-analysis, to the config which would trigger using all their workspace files here instead.
+        let cwd: string = process.cwd();
+        if (this.userEslintConfigFile) {
+            // This helps but might still not be the best. We might need to receive all files by passing in workspace files to the rules command.
+            cwd = path.dirname(this.userEslintConfigFile);
+        }
+        const extensionsToScan: string[] = ['.js', '.cjs', '.mjs', '.ts'];
+        // return extensionsToScan.map(ext => `${cwd}${path.sep}dummy${ext}`);
+
+        // Wow this isn't that bad actually. But it might be really bad if we went to the root folder though... so capping to first 100.
+        const psuedoProjFiles: string[] = expandToListAllFiles([cwd]).filter(f =>
+            !f.includes(path.sep + 'node_modules' + path.sep) && extensionsToScan.includes(path.extname(f)));
+        // return psuedoProjFiles.slice(0,100);
+        return psuedoProjFiles.concat(extensionsToScan.map(ext => `${cwd}${path.sep}dummy${ext}`));
+
+        // I'm starting to think it might be best to pass in the workspace files instead.
+    }
 }
 
-function getSampleFilesForRuleStatusCalculation(): string[] {
-    // To get the user selected status ("error", "warn" , or "off") of every single rule, we would theoretically have to
-    // ask eslint to calculate the configuration (which contains the rule status) for every single file that will be
-    // scanned. This is because users can add to their config that they only want certain rules to run for a particular
-    // file deep in their project. This is why ESLint only offers a calculateConfigForFile(filePath) method and not a
-    // getConfig method. See https://eslint.org/docs/v8.x/integrate/nodejs-api#-eslintcalculateconfigforfilefilepath
-    // If we were to do a full analysis using all the workspace files, it would be rather expensive. Instead, we will
-    // just use a list of sample dummy files instead to keep things fast. Note that the calculateConfigForFile method
-    // doesn't need the file to actually exist, so we just generate some sample file names for the various types of
-    // files that we expect eslint to scan.
-    // With this shortcut, the worse case scenario is that we miss that a rule has been turned on for some particular
-    // file (thus we would miss adding in the 'Recommended' tag for that rule). But in that case, the user can still
-    // update their code analyzer config file to manually add in the 'Recommended' tag for these special cases.
-    // Alternatively if users complain, then in the future we can add to the eslint engine a boolean field,
-    // like perform-full-rule-analysis, to the config which would trigger using all their workspace files here instead.
-    const cwd: string = process.cwd();
-    const extensionsToScan: string[] = ['.js', '.cjs', '.mjs', '.ts'];
-    return extensionsToScan.map(ext => `${cwd}${path.sep}dummy${ext}`);
+/**
+ * Expands a list of files and/or folders to be a list of all contained files, including the files found in subfolders
+ */
+export function expandToListAllFiles(absoluteFileOrFolderPaths: string[]): string[] {
+    let allFiles: string[] = [];
+    for (const fileOrFolder of absoluteFileOrFolderPaths) {
+        if (fs.statSync(fileOrFolder).isDirectory()) {
+            const absSubPaths: string[] = fs.readdirSync(fileOrFolder).map(f => fileOrFolder + path.sep + f);
+            allFiles = [...allFiles, ...expandToListAllFiles(absSubPaths)];
+        } else { // isFile
+            allFiles.push(fileOrFolder);
+        }
+    }
+    return allFiles;
 }

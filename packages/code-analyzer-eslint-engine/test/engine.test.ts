@@ -31,7 +31,7 @@ describe('Tests for the ESLintEnginePlugin', () => {
 describe('Tests for the ESLintEngine', () => {
     let engine: Engine;
     beforeEach(() => {
-        engine = new ESLintEngine();
+        engine = new ESLintEngine({});
     });
 
     it('When getName is called, then retire-js is returned', () => {

@@ -1,6 +1,9 @@
 const messageCatalog : { [key: string]: string } = {
     CantCreateEngineWithUnknownEngineName:
         `The ESLintEnginePlugin does not support creating an engine with name '%s'.`,
+
+    ErrorRunningEslintLintFiles:
+        `Error running eslint.lintFiles:\n %s`
 }
 
 /**
