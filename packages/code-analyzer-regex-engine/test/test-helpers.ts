@@ -1,5 +1,6 @@
 import process from "node:process";
 import path from "node:path";
+import * as EngineApi from '@salesforce/code-analyzer-engine-api';
 
 export function changeWorkingDirectoryToPackageRoot() {
     let original_working_directory: string;
@@ -16,3 +17,17 @@ export function changeWorkingDirectoryToPackageRoot() {
         process.chdir(original_working_directory);
     });
 }
+
+export function printViolations(violations: EngineApi.Violation[]): void {
+    violations.forEach((violation) => {
+        console.log(violation);
+        violation.codeLocations.forEach((loc) => {
+            console.log(loc.startLine, loc.startColumn);
+
+        }
+        )
+    }
+
+    )
+}
+

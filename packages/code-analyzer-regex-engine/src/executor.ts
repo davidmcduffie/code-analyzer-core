@@ -1,11 +1,8 @@
 import * as EngineApi from '@salesforce/code-analyzer-engine-api';
 import fs from "node:fs";
 import path from "node:path";
-import * as rd from 'readline'
-import {once} from 'node:events'
 
 const APEX_CLASS_FILE_EXT: string = ".cls"
-
 
 export class RegexExecutor {
 
@@ -20,16 +17,47 @@ export class RegexExecutor {
 
             }
             if (fileData.isFile()) {
-                findings = findings.concat(await this.scanFile(fileOrFolder, []));
-            } 
+                findings = findings.concat(await this.scanFile(fileOrFolder));
+            } else {
+                findings = findings.concat(await this.scanDir(fileOrFolder))
+            }
             
         }
         return findings;
     }
 
-    private async scanFile(fileName: string, violations: EngineApi.Violation[]): Promise<EngineApi.Violation[]> {
+    private async scanDir(dirName: string): Promise<EngineApi.Violation[]>{
+        const files: string[] = await this.collectFilesFromSubdirs(dirName, []);
+        let violations: EngineApi.Violation[] = [];
 
-        if (path.extname(fileName) !== APEX_CLASS_FILE_EXT){
+        for (const file of files) {
+            violations = violations.concat(await this.scanFile(file))
+        }
+
+        return violations
+
+    }
+
+    /*TODO: add call limit to prevent stack overflow (optimization for later) */
+    private async collectFilesFromSubdirs(dirPath: string, fileNames: string[]): Promise<string[]>{
+        const currentDirectoryFiles: string[] = fs.readdirSync(dirPath);
+        for (const fileOrFolder of currentDirectoryFiles) {
+            const fullPath: string = path.join(dirPath, fileOrFolder)
+            const fileType: string = path.extname(fullPath)
+            if ((fs.statSync(fullPath).isFile()) && (fileType === APEX_CLASS_FILE_EXT)){
+                fileNames.push(fullPath);
+            } else {
+                this.collectFilesFromSubdirs(fullPath, fileNames);
+            }
+
+        }
+        return fileNames;
+    }
+
+    private async scanFile(fileName: string): Promise<EngineApi.Violation[]> {
+        const violations: EngineApi.Violation[] = [];
+        const fileType: string = path.extname(fileName)
+        if (fileType !== APEX_CLASS_FILE_EXT){
             throw new Error(`The scanned file ${fileName} is not an Apex class. Therefore, it is not currently supported by the regex engine.`)
         } else {
             const codeLocations: EngineApi.CodeLocation[] = await this.getViolationCodeLocations(fileName)
@@ -43,6 +71,11 @@ export class RegexExecutor {
                 }
                 violations.push(violation)
 
+
+
+            
+                
+
             } 
         }
 
@@ -52,38 +85,29 @@ export class RegexExecutor {
 
     private async getViolationCodeLocations(fileName: string): Promise<EngineApi.CodeLocation[]> {
         const codeLocations: EngineApi.CodeLocation[] = [];
-        try {
-            const line_counter = ((i = 0) => () => ++i)();
-            const rl = rd.createInterface({
-              input: fs.createReadStream(fileName),
-              crlfDelay: Infinity
-            });
+        const data: string = fs.readFileSync(fileName, {encoding: 'utf8', flag: 'r'})
+        const split_data: string[] = data.split("\n")
+        let regex;
+        let match;
 
-            rl.on('line', (line, lineNum = line_counter()) => {
-              let codeLocation: EngineApi.CodeLocation;
-              const regex = new RegExp(`([^ \t\r\n])[ \t]+$`);
-              
-              if (regex.test(line)) {
-                  codeLocation = {
-                      file: fileName,
-                      startLine: lineNum,
-                      /*Add one because first match group in the regex catches the last non-whitespace character */ 
-                      startColumn: regex.lastIndex + 1
-                  }
-                  codeLocations.push(codeLocation)
-          
-              }
-              
-            });
+        split_data.forEach((line: string, lineNum: number) => {
+            let codeLocation: EngineApi.CodeLocation;
+            regex = /(?<=[^ \t\r\n\f])[ \t]+$/
+            match = regex.exec(line)
+            if (match) {
+                codeLocation = {
+                    file: fileName,
+                    startLine: lineNum + 1,
+                    startColumn: match.index
+                }
+                codeLocations.push(codeLocation)
         
-          await once(rl, 'close')
-          return codeLocations
+            }
 
-          } catch (err) {
-            throw new Error(`Cannot read file ${fileName}.`)
-  
-          }
-        
+        })
+
+        return codeLocations
+
     }
 
 
