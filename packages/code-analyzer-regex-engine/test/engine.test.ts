@@ -1,59 +1,17 @@
 import {RegexEnginePlugin, RegexEngine} from "../src/RegexEnginePlugin";
 import path from "node:path";
-import { TRAILING_WHITESPACE_RULE_MESSAGE, TRAILING_WHITESPACE_RESOURCE_URLS, EXPECTED_CODE_LOCATION_3, EXPECTED_CODE_LOCATION_4 } from "./config";
 import {changeWorkingDirectoryToPackageRoot, WorkspaceForTesting} from "./test-helpers";
 import {
     RuleDescription,
     RuleType,
     SeverityLevel,
     RunOptions,
-    EngineRunResults
+    EngineRunResults,
+    Violation
 } from "@salesforce/code-analyzer-engine-api";
-
+import { TRAILING_WHITESPACE_RULE_MESSAGE, TRAILING_WHITESPACE_RESOURCE_URLS, EXPECTED_CODE_LOCATION_2, EXPECTED_CODE_LOCATION_4, EXPECTED_CODE_LOCATION_3 } from "./config";
 
 changeWorkingDirectoryToPackageRoot();
-
-// const EXPECTED_VIOLATION_1: EngineApi.Violation = {
-//     ruleName: "Trailing Whitespace",
-//     codeLocations: [EXPECTED_CODE_LOCATION_1],
-//     primaryLocationIndex: 0,
-//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
-//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
-    
-// };
-
-// const EXPECTED_VIOLATION_2: EngineApi.Violation = {
-//     ruleName: "Trailing Whitespace",
-//     codeLocations: [EXPECTED_CODE_LOCATION_2],
-//     primaryLocationIndex: 0,
-//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
-//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
-    
-// };
-
-// const EXPECTED_VIOLATION_3: EngineApi.Violation = {
-//     ruleName: "Trailing Whitespace", 
-//     codeLocations: [EXPECTED_CODE_LOCATION_1, EXPECTED_CODE_LOCATION_2],
-//     primaryLocationIndex: 0,
-//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
-//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
-// }
-
-// const EXPECTED_VIOLATION_4: EngineApi.Violation = {
-//     ruleName: "Trailing Whitespace",
-//     codeLocations: [EXPECTED_CODE_LOCATION_3, EXPECTED_CODE_LOCATION_4],
-//     primaryLocationIndex: 0,
-//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
-//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
-// }
-
-// const EXPECTED_VIOLATION_5: EngineApi.Violation = {
-//     ruleName: "Trailing Whitespace",
-//     codeLocations: [EXPECTED_CODE_LOCATION_5, EXPECTED_CODE_LOCATION_6],
-//     primaryLocationIndex: 0,
-//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
-//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
-// }
 
 describe('Regex Engine Tests', () => {
     let engine: RegexEngine;
@@ -82,18 +40,43 @@ describe('Regex Engine Tests', () => {
         expect(rules_desc).toEqual(engineRules)
     });
 
-    it('Confirm runRules() emits appropriate errors when it is pointed towards a file path ', async () => {
-        const ruleNames: string[] = ['TrailingWhitespaceRule']
-        const filePath = path.resolve("test", "test-data", "2_apexClasses", "myClass.cls")
-        const runOptions: RunOptions = {workspace: new WorkspaceForTesting([filePath])}
-        const runResults: EngineRunResults = await engine.runRules(ruleNames, runOptions);
-        expect(runResults.violations).toHaveLength(1)
-        expect(runResults.violations[0].message).toStrictEqual(TRAILING_WHITESPACE_RULE_MESSAGE)
-        expect(runResults.violations[0].resourceUrls).toStrictEqual(TRAILING_WHITESPACE_RESOURCE_URLS)
-        expect(runResults.violations[0].codeLocations).toHaveLength(2)
-        expect(runResults.violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_3)
-        expect(runResults.violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_4)
-        engine.runRules(ruleNames, runOptions);
+
+    describe('runRules() tests', () => {
+        let ruleNames: string[];
+        beforeAll(() => {
+            ruleNames = ['TrailingWhitespaceRule']
+        })
+
+        it('if runRules() is called on a directory with no apex files, it should correctly return no violations', async () => {
+            const filePath = path.resolve("test", "test-data", "1_notApexClassWithWhitespace")
+            const runOptions: RunOptions = {workspace: new WorkspaceForTesting([filePath])}
+            const runResults: EngineRunResults = await engine.runRules(ruleNames, runOptions);
+            const expViolations: Violation[] = [];
+            expect(runResults.violations).toStrictEqual(expViolations);
+        });
+
+        it('Confirm runRules() returns correct errors when called on a file', async () => {
+            const ruleNames: string[] = ['TrailingWhitespaceRule']
+            const filePath = path.resolve("test", "test-data", "2_apexClasses", "myClass.cls")
+            const runOptions: RunOptions = {workspace: new WorkspaceForTesting([filePath])}
+            const runResults: EngineRunResults = await engine.runRules(ruleNames, runOptions);
+            expect(runResults.violations).toHaveLength(1)
+            expect(runResults.violations[0].message).toStrictEqual(TRAILING_WHITESPACE_RULE_MESSAGE)
+            expect(runResults.violations[0].resourceUrls).toStrictEqual(TRAILING_WHITESPACE_RESOURCE_URLS)
+            expect(runResults.violations[0].codeLocations).toHaveLength(2)
+            expect(runResults.violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_2)
+            expect(runResults.violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_3)
+            engine.runRules(ruleNames, runOptions);
+        });
+
+        it('If runRules() finds no violations when an apex file has no trailing whitespaces', async () => {
+            const filePath = path.resolve("test", "test-data", "4_ApexClassWithoutWhitespace")
+            const runOptions: RunOptions = {workspace: new WorkspaceForTesting([filePath])}
+            const runResults: EngineRunResults = await engine.runRules(ruleNames, runOptions);
+            const expViolations: Violation[] = [];
+            expect(runResults.violations).toStrictEqual(expViolations);
+        });
+
     })
 });
 
@@ -128,11 +111,6 @@ describe('RegexEnginePlugin Tests' , () => {
         ];
         const engineRules: RuleDescription[] = await pluginEngine.describeRules({workspace: new WorkspaceForTesting([])})
         expect(engineRules).toStrictEqual(expEngineRules)
-    });
-
-    it('', () => {
-        const ruleNames: string[] = ['TrailingWhitespaceRule']
-        pluginEngine.runRules(ruleNames, {workspace: new WorkspaceForTesting([])});
     });
 
     it('If I make an engine with an invalid name, it should throw an error with the proper error message', () => { 
