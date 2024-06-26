@@ -1,4 +1,5 @@
 import * as EngineApi from '@salesforce/code-analyzer-engine-api/';
+import { RegexExecutor } from './executor';
 
 export class RegexEnginePlugin extends EngineApi.EnginePluginV1 {
 
@@ -36,9 +37,36 @@ export class RegexEngine extends EngineApi.Engine {
         ];
     }
 
-    async runRules(_ruleNames: string[], _runOptions: EngineApi.RunOptions): Promise<EngineApi.EngineRunResults> {
+    private async verifyRule(ruleName: string){
+        const rules: EngineApi.RuleDescription[] = await this.describeRules()
+        for (const rule of rules){
+            if (ruleName === rule.name){
+                return true;
+            }
+        }
+        return false
+        ;
+    }
+
+    async runRules(ruleNames: string[], runOptions: EngineApi.RunOptions): Promise<EngineApi.EngineRunResults> {
         /* TODO: Update section with logic for implementing trailing whitespace rule*/ 
-        return {violations: []};
+        let violations: EngineApi.Violation[] = [];
+        
+        
+        for (const rule of ruleNames) {
+            const ruleVerified: boolean = await this.verifyRule(rule)
+            if (!ruleVerified){
+                throw new Error(`The rule: ${rule} was not found in the engine's rules`)
+            } else {
+                const executor = new RegexExecutor()
+                violations = violations.concat(await executor.execute(runOptions.workspaceFiles))
+
+            }
+        }
+        const runResults: EngineApi.EngineRunResults = {violations: violations}
+
+        return runResults
 
     } 
+
 }

@@ -1,8 +1,52 @@
 import {RegexEnginePlugin, RegexEngine} from "../src/RegexEnginePlugin";
 import * as EngineApi from '@salesforce/code-analyzer-engine-api';
 import { changeWorkingDirectoryToPackageRoot } from "./test-helpers";
+import path from "node:path";
+import { TRAILING_WHITESPACE_RULE_MESSAGE, TRAILING_WHITESPACE_RESOURCE_URLS, EXPECTED_CODE_LOCATION_3, EXPECTED_CODE_LOCATION_4 } from "./config";
 
 changeWorkingDirectoryToPackageRoot();
+
+// const EXPECTED_VIOLATION_1: EngineApi.Violation = {
+//     ruleName: "Trailing Whitespace",
+//     codeLocations: [EXPECTED_CODE_LOCATION_1],
+//     primaryLocationIndex: 0,
+//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
+//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
+    
+// };
+
+// const EXPECTED_VIOLATION_2: EngineApi.Violation = {
+//     ruleName: "Trailing Whitespace",
+//     codeLocations: [EXPECTED_CODE_LOCATION_2],
+//     primaryLocationIndex: 0,
+//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
+//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
+    
+// };
+
+// const EXPECTED_VIOLATION_3: EngineApi.Violation = {
+//     ruleName: "Trailing Whitespace", 
+//     codeLocations: [EXPECTED_CODE_LOCATION_1, EXPECTED_CODE_LOCATION_2],
+//     primaryLocationIndex: 0,
+//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
+//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
+// }
+
+// const EXPECTED_VIOLATION_4: EngineApi.Violation = {
+//     ruleName: "Trailing Whitespace",
+//     codeLocations: [EXPECTED_CODE_LOCATION_3, EXPECTED_CODE_LOCATION_4],
+//     primaryLocationIndex: 0,
+//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
+//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
+// }
+
+// const EXPECTED_VIOLATION_5: EngineApi.Violation = {
+//     ruleName: "Trailing Whitespace",
+//     codeLocations: [EXPECTED_CODE_LOCATION_5, EXPECTED_CODE_LOCATION_6],
+//     primaryLocationIndex: 0,
+//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
+//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
+// }
 
 describe('Regex Engine Tests', () => {
     let engine: RegexEngine;
@@ -31,9 +75,29 @@ describe('Regex Engine Tests', () => {
         expect(rules_desc).toEqual(engineRules)
     });
 
-    it('Confirm runRules() is a no-op', () => {
+    it('If runRules() is called with a rule that does not exist, then emit an appropriate error', async () => {
+        const runOptions: EngineApi.RunOptions = {"workspaceFiles": ["path/to/dir"]}
+        const fakeRule: string[] = ['NotARule']
+        expect(async () => {await engine.runRules(fakeRule, runOptions)}).rejects.toThrow(`The rule: NotARule was not found in the engine's rules`)
+    })
+
+    it('If runRules() is pointed to a directory that does not exist, emit the appropriate error', async () => {
+        const runOptions: EngineApi.RunOptions = {"workspaceFiles": ["path/to/dir"]}
         const ruleNames: string[] = ['TrailingWhitespaceRule']
-        const runOptions: EngineApi.RunOptions = {"workspaceFiles": ["path/to/dir"] }
+        expect(async () => {await engine.runRules(ruleNames, runOptions)}).rejects.toThrow(`The file or directory that you are trying to open path/to/dir does not exist.`)
+    })
+
+    it('Confirm runRules() returns ', async () => {
+        const ruleNames: string[] = ['TrailingWhitespaceRule']
+        const filePath = path.resolve("test", "test-data", "2_apexClasses", "myClass.cls")
+        const runOptions: EngineApi.RunOptions = {"workspaceFiles": [filePath]}
+        const runResults: EngineApi.EngineRunResults = await engine.runRules(ruleNames, runOptions);
+        expect(runResults.violations).toHaveLength(1)
+        expect(runResults.violations[0].message).toStrictEqual(TRAILING_WHITESPACE_RULE_MESSAGE)
+        expect(runResults.violations[0].resourceUrls).toStrictEqual(TRAILING_WHITESPACE_RESOURCE_URLS)
+        expect(runResults.violations[0].codeLocations).toHaveLength(2)
+        expect(runResults.violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_3)
+        expect(runResults.violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_4)
         engine.runRules(ruleNames, runOptions);
     })
 });
@@ -71,7 +135,7 @@ describe('RegexEnginePlugin Tests' , () => {
         expect(engineRules).toStrictEqual(expEngineRules)
     });
 
-    it('Check that engine created from the RegexEnginePlugin has runRules() method as a no-op', () => {
+    it('', () => {
         const ruleNames: string[] = ['TrailingWhitespaceRule']
         const runOptions: EngineApi.RunOptions = {"workspaceFiles": ["path/to/dir"] }
         pluginEngine.runRules(ruleNames, runOptions);
@@ -80,5 +144,7 @@ describe('RegexEnginePlugin Tests' , () => {
     it('If I make an engine with an invalid name, it should throw an error with the proper error message', () => { 
         expect(() => {enginePlugin.createEngine('OtherEngine')}).toThrow("Unsupported engine name: OtherEngine");
     });
+
+    
     
 });

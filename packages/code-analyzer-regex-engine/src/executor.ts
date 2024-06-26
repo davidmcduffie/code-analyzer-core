@@ -7,7 +7,9 @@ const APEX_CLASS_FILE_EXT: string = ".cls"
 export class RegexExecutor {
 
     async execute(filesAndFoldersToScan: string[]): Promise<EngineApi.Violation[]>{
-        let findings: EngineApi.Violation[] = [];
+        let codeLocations: EngineApi.CodeLocation[] = [];
+        const violations: EngineApi.Violation[] = []
+
         for (const fileOrFolder of filesAndFoldersToScan) {
             let fileData: fs.Stats;
             try {
@@ -17,24 +19,38 @@ export class RegexExecutor {
 
             }
             if (fileData.isFile()) {
-                findings = findings.concat(await this.scanFile(fileOrFolder));
+                codeLocations = codeLocations.concat(await this.scanFile(fileOrFolder));
             } else {
-                findings = findings.concat(await this.scanDir(fileOrFolder))
+                codeLocations = codeLocations.concat(await this.scanDir(fileOrFolder))
             }
             
         }
-        return findings;
+
+        if (codeLocations.length > 0){
+            const violation: EngineApi.Violation = {
+                ruleName: "Trailing Whitespace",
+                codeLocations: codeLocations,
+                primaryLocationIndex: 0,
+                message: "",
+                resourceUrls: [""]
+            }
+            violations.push(violation)
+
+        } 
+
+        return violations;
+        
     }
 
-    private async scanDir(dirName: string): Promise<EngineApi.Violation[]>{
+    private async scanDir(dirName: string): Promise<EngineApi.CodeLocation[]>{
         const files: string[] = await this.collectFilesFromSubdirs(dirName, []);
-        let violations: EngineApi.Violation[] = [];
+        let codeLocations: EngineApi.CodeLocation[] = [];
 
         for (const file of files) {
-            violations = violations.concat(await this.scanFile(file))
+            codeLocations = codeLocations.concat(await this.scanFile(file))
         }
 
-        return violations
+        return codeLocations;
 
     }
 
@@ -54,32 +70,14 @@ export class RegexExecutor {
         return fileNames;
     }
 
-    private async scanFile(fileName: string): Promise<EngineApi.Violation[]> {
-        const violations: EngineApi.Violation[] = [];
+    private async scanFile(fileName: string): Promise<EngineApi.CodeLocation[]> {
         const fileType: string = path.extname(fileName)
         if (fileType !== APEX_CLASS_FILE_EXT){
             throw new Error(`The scanned file ${fileName} is not an Apex class. Therefore, it is not currently supported by the regex engine.`)
         } else {
             const codeLocations: EngineApi.CodeLocation[] = await this.getViolationCodeLocations(fileName)
-            if (codeLocations.length > 0){
-                const violation = {
-                    ruleName: "Trailing Whitespace",
-                    message: "",
-                    resourceUrls: [""],
-                    codeLocations: codeLocations,
-                    primaryLocationIndex: 0
-                }
-                violations.push(violation)
-
-
-
-            
-                
-
-            } 
+            return codeLocations;
         }
-
-        return violations
  
     }
 
@@ -87,8 +85,8 @@ export class RegexExecutor {
         const codeLocations: EngineApi.CodeLocation[] = [];
         const data: string = fs.readFileSync(fileName, {encoding: 'utf8', flag: 'r'})
         const split_data: string[] = data.split("\n")
-        let regex;
-        let match;
+        let regex: RegExp;
+        let match: RegExpExecArray | null;
 
         split_data.forEach((line: string, lineNum: number) => {
             let codeLocation: EngineApi.CodeLocation;
@@ -111,8 +109,5 @@ export class RegexExecutor {
     }
 
 
-
-
-    
 
 }

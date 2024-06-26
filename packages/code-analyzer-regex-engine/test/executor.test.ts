@@ -2,79 +2,11 @@ import * as EngineApi from '@salesforce/code-analyzer-engine-api';
 import { changeWorkingDirectoryToPackageRoot } from "./test-helpers";
 import path from "node:path";
 import { RegexExecutor } from '../src/executor';
-import { FILE_LOCATION_1, FILE_LOCATION_2, FILE_LOCATION_3, FILE_LOCATION_4} from './config';
+import { EXPECTED_CODE_LOCATION_1, EXPECTED_CODE_LOCATION_2, EXPECTED_CODE_LOCATION_3, EXPECTED_CODE_LOCATION_4, EXPECTED_CODE_LOCATION_5, EXPECTED_CODE_LOCATION_6, FILE_LOCATION_1, TRAILING_WHITESPACE_RESOURCE_URLS, TRAILING_WHITESPACE_RULE_MESSAGE} from './config';
 
 changeWorkingDirectoryToPackageRoot();
 
-const TRAILING_WHITESPACE_RULE_MESSAGE = "";
-const TRAILING_WHITESPACE_RESOURCE_URLS = [""]
 
-
-const EXPECTED_CODE_LOCATION_1: EngineApi.CodeLocation = {
-    file: FILE_LOCATION_2,
-    startLine: 6,
-    startColumn: 1
-}
-
-const EXPECTED_CODE_LOCATION_2: EngineApi.CodeLocation = {
-    file: FILE_LOCATION_3,
-    startLine: 5,
-    startColumn: 4
-}
-
-const EXPECTED_CODE_LOCATION_3: EngineApi.CodeLocation = {
-    file: FILE_LOCATION_4,
-    startLine: 2,
-    startColumn: 39
-}
-
-const EXPECTED_CODE_LOCATION_4: EngineApi.CodeLocation = {
-    file: FILE_LOCATION_4,
-    startLine: 6,
-    startColumn: 1
-}
-
-// const EXPECTED_CODE_LOCATION_5: EngineApi.CodeLocation = {
-
-// }
-
-// const EXPECTED_CODE_LOCATION_6: EngineApi.CodeLocation = {
-
-// }
-
-const EXPECTED_VIOLATION_1: EngineApi.Violation = {
-    ruleName: "Trailing Whitespace",
-    codeLocations: [EXPECTED_CODE_LOCATION_1],
-    primaryLocationIndex: 0,
-    message: TRAILING_WHITESPACE_RULE_MESSAGE,
-    resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
-    
-};
-
-const EXPECTED_VIOLATION_2: EngineApi.Violation = {
-    ruleName: "Trailing Whitespace",
-    codeLocations: [EXPECTED_CODE_LOCATION_2],
-    primaryLocationIndex: 0,
-    message: TRAILING_WHITESPACE_RULE_MESSAGE,
-    resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
-    
-};
-
-const EXPECTED_VIOLATION_3: EngineApi.Violation = {
-    ruleName: "Trailing Whitespace",
-    codeLocations: [EXPECTED_CODE_LOCATION_3, EXPECTED_CODE_LOCATION_4],
-    primaryLocationIndex: 0,
-    message: TRAILING_WHITESPACE_RULE_MESSAGE,
-    resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
-}
-
-// const EXPECTED_VIOLATION_4: EngineApi.Violation = {
-//     ruleName: "Trailing Whitespace",
-//     codeLocations: [EXPECTED_CODE_LOCATION_5, EXPECTED_CODE_LOCATION_6],
-//     primaryLocationIndex: 0,
-//     message: TRAILING_WHITESPACE_RULE_MESSAGE,
-//     resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
-// }
  
 describe("Executor tests", () => {
     let executor: RegexExecutor;
@@ -89,19 +21,29 @@ describe("Executor tests", () => {
     });
 
     it("If execute() is called with an Apex class that has trailing whitespace, emit violation", async () => {
-        const file = path.resolve("test", "test-data", "2_notApexClassWithoutWhitespace", "myOuterClass.cls")
+        const file = path.resolve("test", "test-data", "2_apexClasses", "myOuterClass.cls")
         const violations: EngineApi.Violation[] = await executor.execute([file])
-        expect(violations).toStrictEqual([EXPECTED_VIOLATION_1])
+        expect(violations).toHaveLength(1)
+        expect(violations[0].message).toStrictEqual(TRAILING_WHITESPACE_RULE_MESSAGE)
+        expect(violations[0].resourceUrls).toStrictEqual(TRAILING_WHITESPACE_RESOURCE_URLS)
+        expect(violations[0].codeLocations).toHaveLength(1)
+        expect(violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_1)
 
     });
 
     it('Check that execute() supports scanning a list of files', async () => {
-        const file1 = path.resolve("test", "test-data", "2_notApexClassWithoutWhitespace", "myOuterClass.cls")
-        const file2 = path.resolve("test", "test-data", "2_notApexClassWithoutWhitespace", "myOut.cls")
+        const file1 = path.resolve("test", "test-data", "2_apexClasses", "myOuterClass.cls")
+        const file2 = path.resolve("test", "test-data", "2_apexClasses", "myOut.cls")
         const files = [file1, file2]
 
         const violations: EngineApi.Violation[] = await executor.execute(files)
-        expect(violations).toStrictEqual([EXPECTED_VIOLATION_1, EXPECTED_VIOLATION_2])
+        expect(violations).toHaveLength(1)
+        expect(violations[0].message).toStrictEqual(TRAILING_WHITESPACE_RULE_MESSAGE)
+        expect(violations[0].resourceUrls).toStrictEqual(TRAILING_WHITESPACE_RESOURCE_URLS)
+        expect(violations[0].codeLocations).toHaveLength(2)
+        expect(violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_1)
+        expect(violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_2)
+        
     });
 
     it("If user wants to scan file and it doesn't exist, emit the proper error message", async () => {
@@ -125,23 +67,39 @@ describe("Executor tests", () => {
     });
 
     it('Ensure that execute() can catch multiple errors in the same file', async () => {
-        const file = path.resolve("test", "test-data", "2_notApexClassWithoutWhitespace", "myClass.cls");
+        const file = path.resolve("test", "test-data", "2_apexClasses", "myClass.cls");
         const violations: EngineApi.Violation[] = await executor.execute([file]);
-        const expViolations: EngineApi.Violation[] = [EXPECTED_VIOLATION_3];
-        expect(violations).toStrictEqual(expViolations)
+        expect(violations).toHaveLength(1)
+        expect(violations[0].message).toStrictEqual(TRAILING_WHITESPACE_RULE_MESSAGE)
+        expect(violations[0].resourceUrls).toStrictEqual(TRAILING_WHITESPACE_RESOURCE_URLS)
+        expect(violations[0].codeLocations).toHaveLength(2)
+        expect(violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_3)
+        expect(violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_4)
 
     })
 
     it("Ensure execute() can be called on a directory with multiple Apex classes and properly emits errors", async () => {
-        const dir = path.resolve("test", "test-data", "2_notApexClassWithoutWhitespace");
-        const violations: EngineApi.Violation[] = await executor.execute([dir]);
-        const expViolations: EngineApi.Violation[] = [EXPECTED_VIOLATION_3, EXPECTED_VIOLATION_2, EXPECTED_VIOLATION_1]
-        expect(violations).toStrictEqual(expViolations)
+        const dir = path.resolve("test", "test-data", "2_apexClasses");
+        const violations: EngineApi.Violation[] = await executor.execute([dir])
+        expect(violations).toHaveLength(1)
+        expect(violations[0].message).toStrictEqual(TRAILING_WHITESPACE_RULE_MESSAGE)
+        expect(violations[0].resourceUrls).toStrictEqual(TRAILING_WHITESPACE_RESOURCE_URLS)
+        expect(violations[0].codeLocations).toHaveLength(4)
+        expect(violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_1)
+        expect(violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_2)
+        expect(violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_3)
+        expect(violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_4)
     });
 
     it("Ensure execute() can be called on a directory with subdirectories with accurate violations reports", async () => {
-
-
+        const dir = path.resolve("test", "test-data", "3_FolderWithMultipleWhitespaceApexClasses")
+        const violations: EngineApi.Violation[] = await executor.execute([dir]);
+        expect(violations).toHaveLength(1)
+        expect(violations[0].message).toStrictEqual(TRAILING_WHITESPACE_RULE_MESSAGE)
+        expect(violations[0].resourceUrls).toStrictEqual(TRAILING_WHITESPACE_RESOURCE_URLS)
+        expect(violations[0].codeLocations).toHaveLength(2)
+        expect(violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_5)
+        expect(violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_6)
     })
 
 
