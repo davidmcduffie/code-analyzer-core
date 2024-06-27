@@ -1,13 +1,25 @@
-import * as EngineApi from '@salesforce/code-analyzer-engine-api/';
+import {
+    ConfigObject,
+    DescribeOptions,
+    Engine,
+    EnginePluginV1,
+    EngineRunResults,
+    RuleDescription,
+    RuleType,
+    RunOptions,
+    SeverityLevel,
+    Violation
+} from "@salesforce/code-analyzer-engine-api";
 import { RegexExecutor } from './executor';
 
-export class RegexEnginePlugin extends EngineApi.EnginePluginV1 {
+
+export class RegexEnginePlugin extends EnginePluginV1 {
 
     getAvailableEngineNames(): string[] {
         return [RegexEngine.NAME];
     }
 
-    createEngine(engineName: string): EngineApi.Engine {
+    async createEngine(engineName: string, _config: ConfigObject): Promise<Engine> {
         if (engineName === RegexEngine.NAME) {
             return new RegexEngine()
         }  else {
@@ -16,19 +28,19 @@ export class RegexEnginePlugin extends EngineApi.EnginePluginV1 {
     }
 }
 
-export class RegexEngine extends EngineApi.Engine {
+export class RegexEngine extends Engine {
     static readonly NAME = "regex"
 
     getName(): string {
         return RegexEngine.NAME;
     }
 
-    async describeRules(): Promise<EngineApi.RuleDescription[]> {
+    async describeRules(_describeOptions: DescribeOptions): Promise<RuleDescription[]> {
         return [
             {
                 name: "TrailingWhitespaceRule",
-                severityLevel: EngineApi.SeverityLevel.Low,
-                type: EngineApi.RuleType.Standard,
+                severityLevel: SeverityLevel.Low,
+                type: RuleType.Standard,
                 tags: ["Recommended", "CodeStyle"],
                 /* TODO: Add rule description and resourceUrls for trailing whitespace rule*/ 
                 description: "",
@@ -37,36 +49,13 @@ export class RegexEngine extends EngineApi.Engine {
         ];
     }
 
-    private async verifyRule(ruleName: string){
-        const rules: EngineApi.RuleDescription[] = await this.describeRules()
-        for (const rule of rules){
-            if (ruleName === rule.name){
-                return true;
-            }
-        }
-        return false
-        ;
-    }
-
-    async runRules(ruleNames: string[], runOptions: EngineApi.RunOptions): Promise<EngineApi.EngineRunResults> {
-        /* TODO: Update section with logic for implementing trailing whitespace rule*/ 
-        let violations: EngineApi.Violation[] = [];
-        
-        
-        for (const rule of ruleNames) {
-            const ruleVerified: boolean = await this.verifyRule(rule)
-            if (!ruleVerified){
-                throw new Error(`The rule: ${rule} was not found in the engine's rules`)
-            } else {
-                const executor = new RegexExecutor()
-                violations = violations.concat(await executor.execute(runOptions.workspaceFiles))
-
-            }
-        }
-        const runResults: EngineApi.EngineRunResults = {violations: violations}
-
+    async runRules(_ruleNames: string[], runOptions: RunOptions): Promise<EngineRunResults> {
+        let violations: Violation[] = [];
+        const executor = new RegexExecutor()
+        const fullFileList: string[] = await runOptions.workspace.getExpandedFiles()
+        violations = violations.concat(await executor.execute(fullFileList))
+        const runResults: EngineRunResults = {violations: violations}
         return runResults
-
     } 
 
 }
