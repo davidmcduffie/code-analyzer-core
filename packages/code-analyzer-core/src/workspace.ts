@@ -16,7 +16,6 @@ export class WorkspaceImpl implements Workspace, engApi.Workspace {
     constructor(workspaceId: string, absFilesAndFolders: string[]) {
         this.workspaceId = workspaceId;
         this.filesAndFolders = removeRedundantPaths(absFilesAndFolders).filter(isWantedPath);
-
     }
 
     getWorkspaceId(): string {

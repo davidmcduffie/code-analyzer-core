@@ -9,7 +9,7 @@ import {
     EngineRunResults,
     Violation
 } from "@salesforce/code-analyzer-engine-api";
-import { TRAILING_WHITESPACE_RULE_MESSAGE, TRAILING_WHITESPACE_RESOURCE_URLS, EXPECTED_CODE_LOCATION_2, EXPECTED_CODE_LOCATION_3 } from "./test-config";
+import { TRAILING_WHITESPACE_RULE_MESSAGE, TRAILING_WHITESPACE_RESOURCE_URLS, EXPECTED_VIOLATION_2 } from "./test-config";
 
 changeWorkingDirectoryToPackageRoot();
 
@@ -33,8 +33,8 @@ describe('Regex Engine Tests', () => {
                 severityLevel: SeverityLevel.Low,
                 type: RuleType.Standard,
                 tags: ["Recommended", "CodeStyle"],
-                description: "",
-                resourceUrls: [""]
+                description: TRAILING_WHITESPACE_RULE_MESSAGE,
+                resourceUrls: TRAILING_WHITESPACE_RESOURCE_URLS
             },
         ];
         expect(rules_desc).toEqual(engineRules)
@@ -61,12 +61,7 @@ describe('Regex Engine Tests', () => {
             const filePath = path.resolve("test", "test-data", "2_apexClasses", "myClass.cls")
             const runOptions: RunOptions = {workspace: new WorkspaceForTesting([filePath])}
             const runResults: EngineRunResults = await engine.runRules(ruleNames, runOptions);
-            expect(runResults.violations).toHaveLength(1)
-            expect(runResults.violations[0].message).toStrictEqual(TRAILING_WHITESPACE_RULE_MESSAGE)
-            expect(runResults.violations[0].resourceUrls).toStrictEqual(TRAILING_WHITESPACE_RESOURCE_URLS)
-            expect(runResults.violations[0].codeLocations).toHaveLength(2)
-            expect(runResults.violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_2)
-            expect(runResults.violations[0].codeLocations).toContainEqual(EXPECTED_CODE_LOCATION_3)
+            expect(runResults.violations).toStrictEqual(EXPECTED_VIOLATION_2)
             engine.runRules(ruleNames, runOptions);
         });
 
@@ -105,8 +100,8 @@ describe('RegexEnginePlugin Tests' , () => {
                 severityLevel: SeverityLevel.Low,
                 type: RuleType.Standard,
                 tags: ["Recommended", "CodeStyle"],
-                description: "",
-                resourceUrls: [""]
+                description: "This rule prevents trailing whitespace (tabs or spaces) at the end of lines in Apex classes",
+                resourceUrls: []
             },
         ];
         const engineRules: RuleDescription[] = await pluginEngine.describeRules({workspace: new WorkspaceForTesting([])})

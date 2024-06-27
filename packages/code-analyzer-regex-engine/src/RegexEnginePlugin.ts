@@ -41,18 +41,16 @@ export class RegexEngine extends Engine {
                 severityLevel: SeverityLevel.Low,
                 type: RuleType.Standard,
                 tags: ["Recommended", "CodeStyle"],
-                /* TODO: Add rule description and resourceUrls for trailing whitespace rule*/ 
-                description: "",
-                resourceUrls: [""]
+                description: "This rule prevents trailing whitespace (tabs or spaces) at the end of lines in Apex classes",
+                resourceUrls: []
             },
         ];
     }
 
     async runRules(_ruleNames: string[], runOptions: RunOptions): Promise<EngineRunResults> {
-        let violations: Violation[] = [];
         const executor = new RegexExecutor()
         const fullFileList: string[] = await runOptions.workspace.getExpandedFiles()
-        violations = violations.concat(await executor.execute(fullFileList))
+        const violations: Violation[] = await executor.execute(fullFileList)
         const runResults: EngineRunResults = {violations: violations}
         
         return runResults
