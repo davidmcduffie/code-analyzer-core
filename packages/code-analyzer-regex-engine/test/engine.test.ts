@@ -15,7 +15,7 @@ import { TRAILING_WHITESPACE_RULE_MESSAGE, TRAILING_WHITESPACE_RESOURCE_URLS, EX
 changeWorkingDirectoryToPackageRoot();
 
 describe('Regex Engine Tests', () => {
-    let engine: RegexEngine;
+    let engine: RegexEngine; 
     beforeAll(() => {
         engine = new RegexEngine();
     });

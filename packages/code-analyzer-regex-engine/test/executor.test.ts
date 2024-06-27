@@ -6,7 +6,7 @@ import { EXPECTED_CODE_LOCATION_1, EXPECTED_CODE_LOCATION_2, EXPECTED_CODE_LOCAT
 import { Violation } from "@salesforce/code-analyzer-engine-api";
 
 changeWorkingDirectoryToPackageRoot();
-
+ 
 
  
 describe("Executor tests", () => {

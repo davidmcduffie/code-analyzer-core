@@ -1,11 +1,8 @@
 import process from "node:process";
 import path from "node:path";
-<<<<<<< HEAD
-import * as EngineApi from '@salesforce/code-analyzer-engine-api';
-=======
 import {Workspace} from "@salesforce/code-analyzer-engine-api";
 import fs from "node:fs";
->>>>>>> b38cffc (CHANGE: @W-16092798@: Introduce Workspace and update rule selection to take in a workspace (#32))
+
 
 export function changeWorkingDirectoryToPackageRoot() {
     let original_working_directory: string;
@@ -23,21 +20,6 @@ export function changeWorkingDirectoryToPackageRoot() {
     });
 }
 
-<<<<<<< HEAD
-export function printViolations(violations: EngineApi.Violation[]): void {
-    violations.forEach((violation) => {
-        console.log(violation);
-        violation.codeLocations.forEach((loc) => {
-            console.log(loc.startLine, loc.startColumn);
-
-        }
-        )
-    }
-
-    )
-}
-
-=======
 export class WorkspaceForTesting implements Workspace {
     private readonly filesAndFolders: string[];
     private expandedFiles?: string[];
@@ -76,7 +58,4 @@ export async function expandToListAllFiles(absoluteFileOrFolderPaths: string[]):
     await Promise.all(absoluteFileOrFolderPaths.map(processPath));
     return allFiles.sort();
 }
-<<<<<<< HEAD
->>>>>>> b38cffc (CHANGE: @W-16092798@: Introduce Workspace and update rule selection to take in a workspace (#32))
-=======
->>>>>>> a4dd879 (@NEW W-18985046@ Implement and test whitespace rule on files)
+
