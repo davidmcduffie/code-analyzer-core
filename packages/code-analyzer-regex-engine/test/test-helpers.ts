@@ -3,7 +3,6 @@ import path from "node:path";
 import {Workspace} from "@salesforce/code-analyzer-engine-api";
 import fs from "node:fs";
 
-
 export function changeWorkingDirectoryToPackageRoot() {
     let original_working_directory: string;
     beforeAll(() => {
@@ -58,4 +57,3 @@ export async function expandToListAllFiles(absoluteFileOrFolderPaths: string[]):
     await Promise.all(absoluteFileOrFolderPaths.map(processPath));
     return allFiles.sort();
 }
-

@@ -12,7 +12,6 @@ import {
 } from "@salesforce/code-analyzer-engine-api";
 import { RegexExecutor } from './executor';
 
-
 export class RegexEnginePlugin extends EnginePluginV1 {
 
     getAvailableEngineNames(): string[] {

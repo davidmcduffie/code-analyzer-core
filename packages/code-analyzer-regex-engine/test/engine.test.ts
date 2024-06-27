@@ -11,7 +11,6 @@ import {
 } from "@salesforce/code-analyzer-engine-api";
 import { TRAILING_WHITESPACE_RULE_MESSAGE, TRAILING_WHITESPACE_RESOURCE_URLS, EXPECTED_CODE_LOCATION_2, EXPECTED_CODE_LOCATION_3 } from "./config";
 
-
 changeWorkingDirectoryToPackageRoot();
 
 describe('Regex Engine Tests', () => {
@@ -40,6 +39,7 @@ describe('Regex Engine Tests', () => {
         ];
         expect(rules_desc).toEqual(engineRules)
     });
+
 
 
     describe('runRules() tests', () => {
@@ -77,7 +77,6 @@ describe('Regex Engine Tests', () => {
             const expViolations: Violation[] = [];
             expect(runResults.violations).toStrictEqual(expViolations);
         });
-
     })
 });
 
@@ -113,6 +112,7 @@ describe('RegexEnginePlugin Tests' , () => {
         const engineRules: RuleDescription[] = await pluginEngine.describeRules({workspace: new WorkspaceForTesting([])})
         expect(engineRules).toStrictEqual(expEngineRules)
     });
+
 
     it('If I make an engine with an invalid name, it should throw an error with the proper error message', () => { 
         expect(enginePlugin.createEngine('OtherEngine', {})).rejects.toThrow("Unsupported engine name: OtherEngine");
