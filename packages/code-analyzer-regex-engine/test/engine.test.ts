@@ -9,7 +9,7 @@ import {
     EngineRunResults,
     Violation
 } from "@salesforce/code-analyzer-engine-api";
-import { TRAILING_WHITESPACE_RULE_MESSAGE, TRAILING_WHITESPACE_RESOURCE_URLS, EXPECTED_CODE_LOCATION_2, EXPECTED_CODE_LOCATION_3 } from "./config";
+import { TRAILING_WHITESPACE_RULE_MESSAGE, TRAILING_WHITESPACE_RESOURCE_URLS, EXPECTED_CODE_LOCATION_2, EXPECTED_CODE_LOCATION_3 } from "./test-config";
 
 changeWorkingDirectoryToPackageRoot();
 

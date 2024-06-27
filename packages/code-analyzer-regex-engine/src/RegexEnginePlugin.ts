@@ -54,6 +54,7 @@ export class RegexEngine extends Engine {
         const fullFileList: string[] = await runOptions.workspace.getExpandedFiles()
         violations = violations.concat(await executor.execute(fullFileList))
         const runResults: EngineRunResults = {violations: violations}
+        
         return runResults
     } 
 

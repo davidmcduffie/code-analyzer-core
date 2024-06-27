@@ -2,13 +2,12 @@
 import { changeWorkingDirectoryToPackageRoot } from "./test-helpers";
 import path from "node:path";
 import { RegexExecutor } from '../src/executor';
-import { EXPECTED_CODE_LOCATION_1, EXPECTED_CODE_LOCATION_2, EXPECTED_CODE_LOCATION_3, TRAILING_WHITESPACE_RESOURCE_URLS, TRAILING_WHITESPACE_RULE_MESSAGE} from './config';
+import { EXPECTED_CODE_LOCATION_1, EXPECTED_CODE_LOCATION_2, EXPECTED_CODE_LOCATION_3, TRAILING_WHITESPACE_RESOURCE_URLS, TRAILING_WHITESPACE_RULE_MESSAGE} from './test-config';
 import { Violation } from "@salesforce/code-analyzer-engine-api";
 
 changeWorkingDirectoryToPackageRoot();
  
-
- 
+console.log(path.resolve("packages", "code-analyzer-regex-engine", "test", "test-data"))
 describe("Executor tests", () => {
     let executor: RegexExecutor;
     beforeAll(() => {

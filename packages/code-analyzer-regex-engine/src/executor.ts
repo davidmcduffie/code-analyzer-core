@@ -27,6 +27,7 @@ export class RegexExecutor {
             }
             violations.push(violation)
         } 
+        
         return violations;
     }
 
@@ -36,6 +37,7 @@ export class RegexExecutor {
         if (fileType === APEX_CLASS_FILE_EXT){
             codeLocations = await this.getViolationCodeLocations(fileName)
         }
+
         return codeLocations;
     }
 
@@ -59,6 +61,7 @@ export class RegexExecutor {
                 codeLocations.push(codeLocation)
             }
         })
+
         return codeLocations
     }
 }
